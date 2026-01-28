@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\QuoteController;
 
 Route::post('/auth', [QuoteController::class, 'authenticate']);
+Route::get('/auto-auth', [QuoteController::class, 'autoAuthenticate']);
 
 Route::post('/offer', [QuoteController::class, 'getOffer']);
 

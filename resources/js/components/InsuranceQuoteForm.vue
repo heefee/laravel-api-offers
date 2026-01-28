@@ -185,12 +185,58 @@
                                     <input type="number" v-model.number="formData.product.policyHolder.address.cityCode" class="custom-input" readonly />
                                 </div>
                             </div>
-                            <div class="col-md-12">
+                            <div class="col-md-6">
                                 <div class="input-wrapper">
                                     <label class="form-label">Street <span class="text-danger">*</span></label>
                                     <input type="text" v-model="formData.product.policyHolder.address.street" class="custom-input" required />
                                 </div>
                             </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">House Number <span class="text-danger">*</span></label>
+                                    <input type="text" v-model="formData.product.policyHolder.address.houseNumber" class="custom-input" placeholder="e.g., 19-21" required />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Floor <span class="text-danger">*</span></label>
+                                    <input type="text" v-model="formData.product.policyHolder.address.floor" class="custom-input" placeholder="e.g., 3" required />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Building</label>
+                                    <input type="text" v-model="formData.product.policyHolder.address.building" class="custom-input" placeholder="e.g., A1" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Staircase</label>
+                                    <input type="text" v-model="formData.product.policyHolder.address.staircase" class="custom-input" placeholder="e.g., 1" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Apartment</label>
+                                    <input type="text" v-model="formData.product.policyHolder.address.apartment" class="custom-input" placeholder="e.g., 12" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Postcode <span class="text-danger">*</span></label>
+                                    <input type="text" v-model="formData.product.policyHolder.address.postcode" class="custom-input" placeholder="e.g., 400356" required />
+                                </div>
+                            </div>
+
+                            <template v-if="clientType === 'individual'">
+                                <div class="col-12 mt-3"><h6 class="subsection-title">Driving License</h6></div>
+                                <div class="col-md-6">
+                                    <div class="input-wrapper">
+                                        <label class="form-label">Driving License Issue Date <span class="text-danger">*</span></label>
+                                        <input type="date" v-model="formData.product.policyHolder.drivingLicense.issueDate" class="custom-input" required />
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
@@ -277,12 +323,40 @@
                                     <input type="number" v-model.number="formData.product.vehicle.owner.address.cityCode" class="custom-input" required />
                                 </div>
                             </div>
-                            <div class="col-md-12">
+                            <div class="col-md-6">
                                 <div class="input-wrapper">
                                     <label class="form-label">Street <span class="text-danger">*</span></label>
                                     <input type="text" v-model="formData.product.vehicle.owner.address.street" class="custom-input" required />
                                 </div>
                             </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">House Number <span class="text-danger">*</span></label>
+                                    <input type="text" v-model="formData.product.vehicle.owner.address.houseNumber" class="custom-input" placeholder="e.g., 19-21" required />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Floor <span class="text-danger">*</span></label>
+                                    <input type="text" v-model="formData.product.vehicle.owner.address.floor" class="custom-input" placeholder="e.g., 3" required />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Postcode <span class="text-danger">*</span></label>
+                                    <input type="text" v-model="formData.product.vehicle.owner.address.postcode" class="custom-input" placeholder="e.g., 400356" required />
+                                </div>
+                            </div>
+
+                            <template v-if="clientType === 'individual'">
+                                <div class="col-12 mt-3"><h6 class="subsection-title">Owner Driving License</h6></div>
+                                <div class="col-md-6">
+                                    <div class="input-wrapper">
+                                        <label class="form-label">Driving License Issue Date <span class="text-danger">*</span></label>
+                                        <input type="date" v-model="formData.product.vehicle.owner.drivingLicense.issueDate" class="custom-input" required />
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
@@ -355,6 +429,24 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Seats <span class="text-danger">*</span></label>
+                                    <input type="number" v-model.number="formData.product.vehicle.seats" class="custom-input" min="1" placeholder="e.g., 5" required />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Engine Displacement (cc) <span class="text-danger">*</span></label>
+                                    <input type="number" v-model.number="formData.product.vehicle.engineDisplacement" class="custom-input" min="0" placeholder="e.g., 1998" required />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Engine Power (kW) <span class="text-danger">*</span></label>
+                                    <input type="number" v-model.number="formData.product.vehicle.enginePower" class="custom-input" min="0" placeholder="e.g., 110" required />
+                                </div>
+                            </div>
                             <div class="col-md-6">
                                 <div class="input-wrapper">
                                     <label class="form-label">Usage Type <span class="text-danger">*</span></label>
@@ -374,6 +466,24 @@
                                 <div class="input-wrapper">
                                     <label class="form-label">CIV Number <span class="text-danger">*</span></label>
                                     <input type="text" v-model="formData.product.vehicle.identification.idNumber" class="custom-input" required />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-wrapper">
+                                    <label class="form-label">First Registration Date <span class="text-danger">*</span></label>
+                                    <input type="date" v-model="formData.product.vehicle.firstRegistration" class="custom-input" required />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-wrapper">
+                                    <label class="form-label">Current Mileage (km) <span class="text-danger">*</span></label>
+                                    <input type="number" v-model.number="formData.product.vehicle.currentMileage" class="custom-input" min="0" placeholder="e.g., 50000" required />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-wrapper">
+                                    <label class="form-label">PTI Expiration Date <span class="text-danger">*</span></label>
+                                    <input type="date" v-model="formData.product.additionalData.product.vehicle.expirationDatePti" class="custom-input" required />
                                 </div>
                             </div>
                         </div>
@@ -506,7 +616,7 @@ data() {
         formData: {
             product: {
                 motor: {
-                    startDate: startDateStr, // Keep this if it's calculated dynamically, otherwise set to null
+                    startDate: startDateStr,
                     termTime: 12,
                     installmentCount: 1,
                     commissionPercentLimit: 10,
@@ -520,7 +630,7 @@ data() {
                     lastName: '',
                     taxId: '',
                     birthdate: '',
-                    gender: '', // or 'm'/'f' if you need a default
+                    gender: '',
                     nationality: 'RO',
                     citizenship: 'RO',
                     email: '',
@@ -565,7 +675,7 @@ data() {
                     engineDisplacement: null,
                     enginePower: null,
                     totalWeight: null,
-                    seats: null, // or default 5 if preferred
+                    seats: null,
                     usageType: 'personal',
                     currentMileage: null,
                     firstRegistration: '',
@@ -614,9 +724,15 @@ data() {
                         hasDisability: false,
                         isRetired: false,
                     },
-                    driver: [], // Initialize as empty array
+                    driver: [],
                 },
-                additionalData: null,
+                additionalData: {
+                    product: {
+                        vehicle: {
+                            expirationDatePti: ''
+                        }
+                    }
+                },
             },
         },
         loading: false,

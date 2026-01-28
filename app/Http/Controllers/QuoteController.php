@@ -112,6 +112,46 @@ class QuoteController extends Controller
     }
 
     /**
+     * Auto-authenticate using credentials from .env file
+     * This allows the frontend to skip the login form
+     */
+    public function autoAuthenticate()
+    {
+        $credentials = $this->getApiCredentials();
+
+        if (empty($credentials['account']) || empty($credentials['password'])) {
+            return response()->json([
+                'error' => 'API credentials not configured in environment',
+            ], 500);
+        }
+
+        try {
+            $response = Http::post(env('RCA_V2_API_URL') . '/auth', $credentials);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                return response()->json([
+                    'success'       => true,
+                    'token'         => $data['data']['token'] ?? null,
+                    'expires_at'    => $data['data']['expires_at'] ?? null,
+                    'refresh_token' => $data['data']['refresh_token'] ?? null,
+                ], 200);
+            }
+
+            return response()->json([
+                'error'   => 'Auto-authentication failed',
+                'details' => $response->json(),
+            ], $response->status());
+
+        } catch (Exception $e) {
+            return response()->json([
+                'error'   => 'Auto-authentication error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get list of counties from external API
      */
     public function getCounties(Request $request)
@@ -305,11 +345,6 @@ class QuoteController extends Controller
                     // Uses main API credentials with provider-specific code
                     $payload['provider'] = [
                         'organization' => ['businessName' => $provider['businessName']],
-                        'authentication' => [
-                            'account' => $apiCredentials['account'],
-                            'password' => $apiCredentials['password'],
-                            'code' => $provider['code'],
-                        ],
                     ];
 
                     // Log full payload for first provider only (to avoid excessive logging)
