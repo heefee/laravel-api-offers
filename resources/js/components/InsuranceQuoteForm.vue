@@ -574,7 +574,57 @@
                                         </div>
                                     </div>
                                     <div class="offer-actions">
-                                        <button type="button" @click="selectOffer(offer)" class="btn btn-primary">Select Offer</button>
+                                        <button type="button" @click="downloadOfferPdf(offer)" class="btn btn-outline-primary" :disabled="offer.downloading">
+                                            <svg v-if="!offer.downloading" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                            <span v-if="offer.downloading" class="spinner-border spinner-border-sm me-1"></span>
+                                            Download Offer
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="createPolicyFromOffer(offer)"
+                                            class="btn btn-primary"
+                                            :disabled="offer.creatingPolicy || offer.checkingPolicy || offer.policyAlreadyExists || offer.policy"
+                                            :title="offer.policyAlreadyExists || offer.policy ? 'A policy has already been created for this offer' : 'Create a new policy from this offer'"
+                                        >
+                                            <svg v-if="!offer.creatingPolicy && !offer.checkingPolicy" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                            <span v-if="offer.creatingPolicy || offer.checkingPolicy" class="spinner-border spinner-border-sm me-1"></span>
+                                            <template v-if="offer.policyAlreadyExists || offer.policy">
+                                                Policy Already Created
+                                            </template>
+                                            <template v-else-if="offer.checkingPolicy">
+                                                Checking...
+                                            </template>
+                                            <template v-else>
+                                                Create Policy
+                                            </template>
+                                        </button>
+                                    </div>
+                                    <!-- Show notice if policy already exists from previous session -->
+                                    <div v-if="offer.policyAlreadyExists && !offer.policy" class="policy-exists-notice mt-3">
+                                        <div class="alert alert-warning mb-0">
+                                            <strong>Policy Already Exists</strong><br>
+                                            <span v-if="offer.existingPolicyInfo">
+                                                Policy ID: {{ offer.existingPolicyInfo.policyId || 'N/A' }}
+                                            </span>
+                                            <span v-else>
+                                                A policy has already been created for this offer.
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <!-- Show policy info if created -->
+                                    <div v-if="offer.policy" class="policy-created mt-3">
+                                        <div class="alert alert-success mb-2">
+                                            <strong>Policy Created!</strong><br>
+                                            Policy ID: {{ offer.policy.policyId || offer.policy.id || 'N/A' }}<br>
+                                            <span v-if="offer.policy.series && offer.policy.number">
+                                                Policy Number: {{ offer.policy.series }}/{{ offer.policy.number }}
+                                            </span>
+                                        </div>
+                                        <button type="button" @click="downloadPolicyPdf(offer)" class="btn btn-success w-100" :disabled="offer.downloadingPolicy">
+                                            <svg v-if="!offer.downloadingPolicy" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                            <span v-if="offer.downloadingPolicy" class="spinner-border spinner-border-sm me-1"></span>
+                                            Download Policy PDF
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -676,7 +726,7 @@ data() {
                     enginePower: null,
                     totalWeight: null,
                     seats: null,
-                    usageType: 'personal',
+                    usageType: '',
                     currentMileage: null,
                     firstRegistration: '',
                     hasMobilityModifications: false,
@@ -1195,12 +1245,35 @@ data() {
 
                 if (this.offers.length === 0) {
                     this.error = 'No quotes available from any provider';
+                } else {
+                    // Check policy status for all offers in background
+                    this.checkAllOffersPolicyStatus();
                 }
             } catch (err) {
                 console.error(err);
                 this.error = err.message || 'An error occurred';
             } finally {
                 this.loading = false;
+            }
+        },
+
+        async checkAllOffersPolicyStatus() {
+            // Check policy status for each offer in the background
+            // This is done in parallel to avoid blocking the UI
+            for (const offer of this.offers) {
+                // Initialize reactive properties if not already set
+                if (offer.policyAlreadyExists === undefined) {
+                    offer.policyAlreadyExists = false;
+                }
+                if (offer.checkingPolicy === undefined) {
+                    offer.checkingPolicy = false;
+                }
+                if (offer.existingPolicyInfo === undefined) {
+                    offer.existingPolicyInfo = null;
+                }
+
+                // Check in background (don't await, let it run in parallel)
+                this.checkPolicyExists(offer);
             }
         },
         addDriver() {
@@ -1214,8 +1287,219 @@ data() {
         removeDriver(index) {
             this.formData.product.vehicle.driver.splice(index, 1);
         },
-        selectOffer(offer) {
-            console.log('Selected offer:', offer);
+
+        async downloadOfferPdf(offer) {
+            offer.downloading = true;
+            try {
+                const params = new URLSearchParams({
+                    provider: offer.providerName || '',
+                    providerOfferCode: offer.providerOfferCode || '',
+                });
+
+                const response = await fetch(`/api/offer/${offer.offerId}/pdf?${params}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Accept': 'application/pdf, application/json',
+                    },
+                });
+
+                const contentType = response.headers.get('Content-Type');
+
+                if (contentType && contentType.includes('application/pdf')) {
+                    // Direct PDF download
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `offer_${offer.offerId}_${offer.providerName || 'insurance'}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    // JSON response with URL or error
+                    const data = await response.json();
+                    if (data.pdfUrl) {
+                        window.open(data.pdfUrl, '_blank');
+                    } else if (data.error) {
+                        alert('Error downloading offer PDF: ' + (data.details?.message || data.error));
+                    }
+                }
+            } catch (err) {
+                console.error('Error downloading offer PDF:', err);
+                alert('Failed to download offer PDF: ' + err.message);
+            } finally {
+                offer.downloading = false;
+            }
+        },
+
+        async checkPolicyExists(offer) {
+            // Check if a policy has already been created for this offer
+            offer.checkingPolicy = true;
+            try {
+                const response = await fetch(`/api/offer/${offer.offerId}/check-policy`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Accept': 'application/json',
+                    },
+                });
+
+                const data = await response.json();
+                console.log('Policy check response:', data);
+
+                if (response.ok && data.policyExists) {
+                    offer.policyAlreadyExists = true;
+                    offer.existingPolicyInfo = data.policyInfo || null;
+                    return true;
+                }
+                return false;
+            } catch (err) {
+                console.error('Error checking policy exists:', err);
+                // If check fails, allow user to attempt creation
+                return false;
+            } finally {
+                offer.checkingPolicy = false;
+            }
+        },
+
+        async createPolicyFromOffer(offer) {
+            // First check if policy already exists
+            offer.checkingPolicy = true;
+            const policyExists = await this.checkPolicyExists(offer);
+
+            if (policyExists) {
+                alert('A policy has already been created for this offer. You cannot create another policy from the same offer.');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to create a policy from this offer?\n\nProvider: ${offer.providerName}\nPremium: ${offer.premiumAmount} ${offer.currency || 'RON'}`)) {
+                return;
+            }
+
+            offer.creatingPolicy = true;
+            try {
+                const payload = {
+                    providerOfferCode: offer.providerOfferCode,
+                    provider: offer.providerName,
+                    offerId: offer.offerId,
+                    // Include premium amount and currency from the offer
+                    premiumAmount: offer.premiumAmount,
+                    currency: offer.currency || 'RON',
+                };
+
+                const response = await fetch(`/api/offer/${offer.offerId}/policy`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                console.log('Policy creation response:', data);
+
+                if (!response.ok) {
+                    const errorMsg = data.details?.message || data.details?.data || data.error || 'Failed to create policy';
+
+                    // Check if error indicates policy already exists
+                    const errorString = typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg;
+                    if (errorString.toLowerCase().includes('already') ||
+                        errorString.toLowerCase().includes('exists') ||
+                        errorString.toLowerCase().includes('duplicate')) {
+                        offer.policyAlreadyExists = true;
+                        alert('A policy has already been created for this offer.');
+                    } else {
+                        alert('Error creating policy: ' + errorString);
+                    }
+                    return;
+                }
+
+                // Store the policy info in the offer object
+                offer.policy = data.data;
+                console.log('Policy stored:', offer.policy);
+
+                const policyId = offer.policy?.policyId || offer.policy?.id;
+                const policyNumber = offer.policy?.series && offer.policy?.number
+                    ? `${offer.policy.series}/${offer.policy.number}`
+                    : '';
+                alert(`Policy created successfully!\n\nPolicy ID: ${policyId || 'N/A'}${policyNumber ? '\nPolicy Number: ' + policyNumber : ''}\n\nYou can now download the policy PDF.`);
+
+            } catch (err) {
+                console.error('Error creating policy:', err);
+                alert('Failed to create policy: ' + err.message);
+            } finally {
+                offer.creatingPolicy = false;
+            }
+        },
+
+        async downloadPolicyPdf(offer) {
+            if (!offer.policy) {
+                alert('No policy has been created yet.');
+                return;
+            }
+
+            const policyId = offer.policy.policyId || offer.policy.id;
+            if (!policyId) {
+                alert('Policy ID not found. Policy data: ' + JSON.stringify(offer.policy));
+                return;
+            }
+
+            offer.downloadingPolicy = true;
+            try {
+                console.log('Downloading policy PDF for policyId:', policyId);
+
+                const response = await fetch(`/api/policy/${policyId}/pdf`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Accept': 'application/pdf, application/json',
+                    },
+                });
+
+                console.log('Policy PDF response status:', response.status);
+                const contentType = response.headers.get('Content-Type');
+                console.log('Policy PDF response content-type:', contentType);
+
+                if (contentType && contentType.includes('application/pdf')) {
+                    // Direct PDF download
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `policy_${policyId}_${offer.providerName || 'insurance'}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    console.log('Policy PDF downloaded successfully');
+                } else {
+                    // JSON response with URL or error
+                    const data = await response.json();
+                    console.log('Policy PDF JSON response:', data);
+
+                    if (data.pdfUrl) {
+                        window.open(data.pdfUrl, '_blank');
+                    } else if (data.error) {
+                        const errorMsg = data.details?.message || data.details?.data || data.message || data.error;
+                        alert('Error downloading policy PDF: ' + (typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg));
+                    } else if (data.data) {
+                        // Unexpected response format - log and show info
+                        console.warn('Unexpected policy PDF response format:', data);
+                        alert('Policy PDF response received but format is unexpected. Check console for details.');
+                    } else {
+                        alert('Unable to download policy PDF. Response: ' + JSON.stringify(data));
+                    }
+                }
+            } catch (err) {
+                console.error('Error downloading policy PDF:', err);
+                alert('Failed to download policy PDF: ' + err.message);
+            } finally {
+                offer.downloadingPolicy = false;
+            }
         },
         getBadgeColor(index) {
             return this.badgeColors[index % this.badgeColors.length];
@@ -1541,11 +1825,69 @@ data() {
 
 .offer-actions {
     margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.offer-actions .btn {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.offer-actions .btn-outline-primary {
+    background: white;
+    border: 2px solid #667eea;
+    color: #667eea;
+}
+
+.offer-actions .btn-outline-primary:hover:not(:disabled) {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
 }
 
 .offer-actions .btn-primary {
-    width: 100%;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+}
+
+.offer-actions .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.offer-actions .btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Policy Created Section */
+.policy-created {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 15px;
+}
+
+.policy-created .alert-success {
+    background: #d1fae5;
+    border: 1px solid #10b981;
+    color: #065f46;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.85rem;
+}
+
+.policy-created .btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     border: none;
     padding: 12px;
     border-radius: 8px;
@@ -1553,11 +1895,47 @@ data() {
     font-weight: 600;
     cursor: pointer;
     transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.offer-actions .btn-primary:hover {
+.policy-created .btn-success:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.policy-created .btn-success:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Policy Already Exists Warning */
+.policy-exists-notice {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 15px;
+}
+
+.policy-exists-notice .alert-warning {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.85rem;
+}
+
+/* Button state when policy already exists */
+.offer-actions .btn-primary:disabled {
+    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+    opacity: 0.8;
+}
+
+/* Spinner for loading states */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
 }
 
 /* Transitions */
