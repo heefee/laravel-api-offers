@@ -19,7 +19,5 @@ Currently integrated with the following insurers:
 * Generali
 * Groupama
 * Hellas Direct
-* Omniasig
 * Grawe
 * Eazy Insure
-* DallBogg
